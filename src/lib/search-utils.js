@@ -98,9 +98,13 @@ const searchUtils = {
         // Check for synonym match if no exact match
         if (!termMatched && this.hasSynonymMatch(searchableText, term)) {
           const synonyms = this.getSynonyms(term);
+
+          // Find the first synonym that matches exactly
           const matchedSynonym = synonyms.find((syn) =>
             this.hasExactWordMatch(searchableText, syn)
           );
+
+          // If a synonym matches, add it to the match info
           if (matchedSynonym) {
             matchInfo.matchedSynonyms.push({
               searchTerm: term,
@@ -130,6 +134,25 @@ const searchUtils = {
       if (a.matchType === "synonym" && b.matchType === "exact") return 1;
       return 0;
     });
+
+    // [
+    //   {
+    //     node: {
+    //       id: "string",
+    //       name: "string",
+    //       description: "string",
+    //       children: [],
+    //     },
+    //     matchType: "exact | synonym",
+    //     matchedTerms: ["string"],
+    //     matchedSynonyms: [
+    //       {
+    //         searchTerm: "string",
+    //         matchedSynonym: "string",
+    //       },
+    //     ],
+    //   },
+    // ];
   },
 };
 
