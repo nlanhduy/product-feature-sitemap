@@ -19,6 +19,23 @@ const treeUtils = {
     return null
   },
 
+   getAllChildrenNames: (tree, targetId) => {
+    const node = treeUtils.findNode(tree, targetId);
+    if (!node) return [];
+
+    const result = [];
+    const traverse = (n) => {
+      for (const child of n.children || []) {
+        if (child.name) result.push(child.name);
+        traverse(child);
+      }
+    };
+
+    traverse(node);
+    return result;
+  },
+
+
   addNode: (tree, parentId, newNode) => {
     if (tree.id === parentId) {
       tree.children = tree.children || []

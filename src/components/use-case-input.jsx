@@ -121,10 +121,23 @@ const UseCaseInput = ({
             />
 
             {/* Suggestions dropdown */}
-            {showSuggestions && suggestions.length >= 5 ? (
-              <div className='absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 h-max'>
-                <ScrollArea className='h-[200px]'>
-                  <div className='p-1'>
+            {showSuggestions && suggestions.length > 0 && (
+              <>
+                {suggestions.length >= 5 ? (
+                  <div className='absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 h-[200px]'>
+                    <ScrollArea className='h-[200px]'>
+                      {suggestions.map((suggestion, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleSelectFromSuggestion(suggestion)}
+                          className='px-3 py-2 hover:bg-muted rounded cursor-pointer text-sm transition-colors'>
+                          {suggestion}
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  </div>
+                ) : (
+                  <div className='absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 h-fit'>
                     {suggestions.map((suggestion, index) => (
                       <div
                         key={index}
@@ -134,21 +147,8 @@ const UseCaseInput = ({
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
-              </div>
-            ) : (
-              <div className='absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 h-fit'>
-                <div className='p-1'>
-                  {suggestions.map((suggestion, index) => (
-                    <div
-                      key={index}
-                      onClick={() => handleSelectFromSuggestion(suggestion)}
-                      className='px-3 py-2 hover:bg-muted rounded cursor-pointer text-sm transition-colors'>
-                      {suggestion}
-                    </div>
-                  ))}
-                </div>
-              </div>
+                )}
+              </>
             )}
           </div>
 

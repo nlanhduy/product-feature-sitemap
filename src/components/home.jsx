@@ -14,6 +14,7 @@ import searchUtils from '@/lib/search-utils'
 import treeUtils from '@/lib/tree-utils'
 import useCaseStorage from '@/lib/use-case-utils'
 import { initialTree } from '@/data/sample-tree'
+import { ChatWidget } from './chat-widget'
 
 export default function Home() {
   // State management for the feature map
@@ -391,7 +392,6 @@ export default function Home() {
               useCaseStorage.initializeUseCases(importedData.tree),
           )
         } else {
-          // Old format - just tree
           setTree(importedData)
           setAllUseCases(useCaseStorage.initializeUseCases(importedData))
         }
@@ -493,6 +493,14 @@ export default function Home() {
         onClose={handleCloseParentSelector}
         tree={tree}
         onSelectParent={handleSelectParent}
+      />
+
+      <ChatWidget
+        tree={tree}
+        handleNodeDetailClick={handleNodeClick}
+        handleAddSubfeature={handleAddChild}
+        handleEditFeature={handleEditNode}
+        handleDeleteFeature={handleDeleteNode}
       />
 
       <DeleteConfirmation

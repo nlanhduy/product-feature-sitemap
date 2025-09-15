@@ -8,7 +8,6 @@ import { Edit, Trash2, Plus, Target, Lightbulb, FileText, List } from 'lucide-re
 
 const NodeDetails = ({ node, onEdit, onDelete, onAddChild, isOpen, onClose }) => {
   if (!isOpen || !node) return null
-
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className='w-[400px] sm:w-[540px] py-10 px-4 overflow-y-auto'>
