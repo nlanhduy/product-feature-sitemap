@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, use } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Plus, Download, Upload } from 'lucide-react'
@@ -15,7 +15,10 @@ import treeUtils from '@/lib/tree-utils'
 import useCaseStorage from '@/lib/use-case-utils'
 import { initialTree } from '@/data/sample-tree'
 import { ChatWidget } from './chat-widget'
-import { useLog } from '@/hook/useLog'
+import { useMutation } from '@tanstack/react-query'
+import { FeatureService } from '@/services/FeatureService'
+import { Toaster } from '@/components/ui/sonner'
+import { toast } from 'sonner'
 
 export default function Home() {
   const [tree, setTree] = useState(initialTree)
@@ -34,13 +37,60 @@ export default function Home() {
   const [editingNode, setEditingNode] = useState(null)
   const [parentIdForNewNode, setParentIdForNewNode] = useState(null)
   const [nodeToDelete, setNodeToDelete] = useState(null)
-
   const isProcessingRef = useRef(false)
 
   const NODE_WIDTH = Number(process.env.NEXT_PUBLIC_NODE_WIDTH)
   const NODE_HEIGHT = Number(process.env.NEXT_PUBLIC_NODE_HEIGHT)
   const LEVEL_HEIGHT = Number(process.env.NEXT_PUBLIC_LEVEL_HEIGHT)
 
+  // CRUD
+  const deleteFeatureMutation = useMutation({
+    mutationFn: FeatureService.delete,
+    onSuccess: () => {
+      toast('Feature deleted', {
+        description: 'The feature has been successfully deleted.',
+        variant: 'success',
+      })
+    },
+    onError: error => {
+      toast('Error deleting feature', {
+        description: error.message || 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const addFeatureMutation = useMutation({
+    mutationFn: FeatureService.create,
+    onSuccess: () => {
+      toast('Feature created', {
+        description: 'The new feature has been successfully created.',
+        variant: 'success',
+      })
+    },
+    onError: error => {
+      toast('Error creating feature', {
+        description: error.message || 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const editFeatureMutation = useMutation({
+    mutationFn: FeatureService.update,
+    onSuccess: () => {
+      toast('Feature updated', {
+        description: 'The feature has been successfully updated.',
+        variant: 'success',
+      })
+    },
+    onError: error => {
+      toast('Error updating feature', {
+        description: error.message || 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      })
+    },
+  })
   const calculateLayout = useCallback((node, level = 0) => {
     const positions = new Map()
 
@@ -257,38 +307,56 @@ export default function Home() {
   )
 
   const handleSaveNode = useCallback(
-    formData => {
+    async formData => {
       if (isProcessingRef.current) return
       isProcessingRef.current = true
 
-      setTree(prevTree => {
-        const newTree = treeUtils.deepClone(prevTree)
-
+      try {
         if (editingNode) {
-          treeUtils.updateNode(newTree, editingNode.id, formData)
+          const updatedFeature = await editFeatureMutation.mutateAsync({
+            featureId: editingNode.id,
+            data: { ...formData },
+          })
+
+          setTree(prevTree => {
+            const newTree = treeUtils.deepClone(prevTree)
+            treeUtils.updateNode(newTree, editingNode.id, updatedFeature || formData)
+            return newTree
+          })
         } else {
-          const newNode = {
-            id: treeUtils.generateId(),
+          const newFeatureData = {
             ...formData,
             children: [],
-            isExpanded: true,
+            parent_id: parentIdForNewNode,
           }
 
-          treeUtils.addNode(newTree, parentIdForNewNode, newNode)
+          const createdFeature = await addFeatureMutation.mutateAsync(newFeatureData)
+
+          setTree(prevTree => {
+            const newTree = treeUtils.deepClone(prevTree)
+            const newNode = {
+              id: createdFeature._id,
+              ...createdFeature,
+              children: [],
+              isExpanded: true,
+            }
+            treeUtils.addNode(newTree, parentIdForNewNode, newNode)
+            return newTree
+          })
         }
 
-        return newTree
-      })
-
-      setIsEditorOpen(false)
-      setEditingNode(null)
-      setParentIdForNewNode(null)
-
-      setTimeout(() => {
-        isProcessingRef.current = false
-      }, 100)
+        setIsEditorOpen(false)
+        setEditingNode(null)
+        setParentIdForNewNode(null)
+      } catch (error) {
+        console.error('Failed to save node:', error)
+      } finally {
+        setTimeout(() => {
+          isProcessingRef.current = false
+        }, 100)
+      }
     },
-    [editingNode, parentIdForNewNode],
+    [editingNode, parentIdForNewNode, editFeatureMutation, addFeatureMutation],
   )
 
   const handleDeleteNode = useCallback(
@@ -303,26 +371,29 @@ export default function Home() {
     },
     [tree],
   )
-
-  const handleConfirmDelete = useCallback(() => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!nodeToDelete) return
-
     if (isProcessingRef.current) return
     isProcessingRef.current = true
 
-    setTree(prevTree => {
-      const newTree = treeUtils.deepClone(prevTree)
-      treeUtils.deleteNode(newTree, nodeToDelete.id)
-      return newTree
-    })
+    try {
+      await deleteFeatureMutation.mutateAsync(nodeToDelete.id)
 
-    setIsDetailsOpen(false)
-    setSelectedNodeId(null)
-    setNodeToDelete(null)
-
-    setTimeout(() => {
-      isProcessingRef.current = false
-    }, 100)
+      setTree(prevTree => {
+        const newTree = treeUtils.deepClone(prevTree)
+        treeUtils.deleteNode(newTree, nodeToDelete.id)
+        return newTree
+      })
+      setIsDetailsOpen(false)
+      setSelectedNodeId(null)
+      setNodeToDelete(null)
+    } catch (error) {
+      console.error('Failed to delete feature:', error)
+    } finally {
+      setTimeout(() => {
+        isProcessingRef.current = false
+      }, 100)
+    }
   }, [nodeToDelete])
 
   const handleCancelEdit = useCallback(() => {
@@ -392,6 +463,8 @@ export default function Home() {
 
   return (
     <div className='h-screen flex flex-col bg-background'>
+      <Toaster />
+
       <header className='sticky top-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm'>
         <div className='flex items-center justify-between p-4'>
           <div className='flex items-center gap-4'>
@@ -455,7 +528,7 @@ export default function Home() {
 
       <NodeEditor
         node={editingNode}
-        parentNodeId={
+        parentNode={
           parentIdForNewNode ? treeUtils.findNode(tree, parentIdForNewNode) : null
         }
         onSave={handleSaveNode}

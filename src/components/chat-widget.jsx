@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import treeUtils from '@/lib/tree-utils'
+import { ChatService } from '@/services/ChatService'
+import { useMutation } from '@tanstack/react-query'
 
 export function ChatWidget({
   className,
@@ -35,11 +37,8 @@ export function ChatWidget({
   const [isMinimized, setIsMinimized] = useState(false)
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState(initialSessionId || `session_${Date.now()}`)
   const messagesEndRef = useRef()
-
-  const apiEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat`
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -56,32 +55,9 @@ export function ChatWidget({
     ) : null
   }
 
-  const sendMessage = async message => {
-    if (!message.trim() || isLoading) return
-
-    const userMessage = {
-      id: `user_${Date.now()}`,
-      text: message,
-      isUser: true,
-      timestamp: new Date(),
-    }
-    setMessages(prev => [...prev, userMessage])
-    setInputValue('')
-    setIsLoading(true)
-
-    try {
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message,
-          session_id: sessionId,
-        }),
-      })
-
-      const data = await response.json()
+  const messageMutation = useMutation({
+    mutationFn: ChatService.sendMessage,
+    onSuccess: data => {
       if (data.success && data.message) {
         if (data.session_id) {
           setSessionId(data.session_id)
@@ -92,35 +68,53 @@ export function ChatWidget({
           nodeData = treeUtils.findNode(tree, data.metadata.current_context.current_node)
         }
 
-        const botMessage = {
-          id: `bot_${Date.now()}`,
-          text: data.message,
-          isUser: false,
-          timestamp: new Date(),
-          nodeData,
-        }
-        setMessages(prev => [...prev, botMessage])
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `bot_${Date.now()}`,
+            text: data.message,
+            isUser: false,
+            timestamp: new Date(),
+            nodeData,
+          },
+        ])
       } else {
-        const errorMessage = {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `error_${Date.now()}`,
+            text: data.error || 'Sorry, something went wrong. Please try again.',
+            isUser: false,
+            timestamp: new Date(),
+          },
+        ])
+      }
+    },
+    onError: () => {
+      setMessages(prev => [
+        ...prev,
+        {
           id: `error_${Date.now()}`,
-          text: data.error || 'Sorry, something went wrong. Please try again.',
+          text: 'Failed to send message. Please check your connection and try again.',
           isUser: false,
           timestamp: new Date(),
-        }
-        setMessages(prev => [...prev, errorMessage])
-      }
-    } catch (error) {
-      console.error('Chat error:', error)
-      const errorMessage = {
-        id: `error_${Date.now()}`,
-        text: 'Failed to send message. Please check your connection and try again.',
-        isUser: false,
-        timestamp: new Date(),
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
+        },
+      ])
+    },
+  })
+
+  const sendMessage = text => {
+    if (!text.trim() || messageMutation.isPending) return
+
+    const userMessage = {
+      id: `user_${Date.now()}`,
+      text,
+      isUser: true,
+      timestamp: new Date(),
     }
+    setMessages(prev => [...prev, userMessage])
+    setInputValue('')
+    messageMutation.mutate({ message: text, sessionId })
   }
 
   const handleSubmit = e => {
@@ -302,7 +296,7 @@ export function ChatWidget({
                       )}
                     </div>
                   ))}
-                  {isLoading && (
+                  {messageMutation.isPending && (
                     <div className='flex justify-start'>
                       <div className='bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm'>
                         <div className='flex items-center gap-1'>
@@ -324,13 +318,13 @@ export function ChatWidget({
                       onChange={e => setInputValue(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder='Type your message...'
-                      disabled={isLoading}
+                      disabled={messageMutation.isPending}
                       className='flex-1'
                     />
                     <Button
                       type='submit'
                       size='sm'
-                      disabled={isLoading || !inputValue.trim()}
+                      disabled={messageMutation.isPending || !inputValue.trim()}
                       className='px-3'>
                       <Send className='h-4 w-4' />
                     </Button>
