@@ -2,10 +2,20 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { MessageCircle, Send, X, Minimize2, Info } from 'lucide-react'
+import {
+  MessageCircle,
+  Send,
+  X,
+  Minimize2,
+  MoveRight,
+  Eye,
+  Plus,
+  Pencil,
+  Trash,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
@@ -13,8 +23,8 @@ import treeUtils from '@/lib/tree-utils'
 
 export function ChatWidget({
   className,
-  apiEndpoint = 'http://localhost:8000/api/chat',
   sessionId: initialSessionId,
+  handleMoveToNode,
   handleNodeDetailClick,
   handleAddSubfeature,
   handleDeleteFeature,
@@ -28,6 +38,8 @@ export function ChatWidget({
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState(initialSessionId || `session_${Date.now()}`)
   const messagesEndRef = useRef()
+
+  const apiEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat`
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -132,7 +144,6 @@ export function ChatWidget({
   return (
     <>
       <div className={cn('fixed bottom-4 left-4 z-50', className)}>
-        {/* Chat Icon Button */}
         {!isOpen && (
           <Button
             onClick={() => setIsOpen(true)}
@@ -142,11 +153,10 @@ export function ChatWidget({
           </Button>
         )}
 
-        {/* Chat Window */}
         {isOpen && (
           <Card
             className={cn(
-              'w-80 shadow-2xl transition-all duration-300 ease-in-out',
+              'w-[400px] shadow-2xl transition-all duration-300 ease-in-out',
               isMinimized ? 'h-14' : 'h-[600px]',
             )}>
             {/* Header */}
@@ -173,7 +183,6 @@ export function ChatWidget({
               </div>
             </div>
 
-            {/* Chat Content */}
             {!isMinimized && (
               <>
                 {/* Messages */}
@@ -209,9 +218,12 @@ export function ChatWidget({
                             <Button
                               variant='ghost'
                               size='sm'
-                              onClick={() => handleNodeDetailClick(message.nodeData)}
+                              onClick={() => {
+                                handleMoveToNode(message.nodeData.id)
+                                handleNodeDetailClick(message.nodeData)
+                              }}
                               className='h-6 w-6 p-0'>
-                              <Info className='h-3 w-3' />
+                              <MoveRight className='h-3 w-3' />
                             </Button>
                           </div>
                           <p className='text-xs text-muted-foreground mb-2'>
@@ -249,38 +261,45 @@ export function ChatWidget({
                             <strong>Value:</strong> {message.nodeData.valueProposition}
                           </div>
 
-                          <div className='flex flex-wrap gap-1 mt-2'>
+                          <div className='flex flex-wrap gap-4 mt-2'>
                             <Button
                               variant='outline'
                               size='sm'
                               onClick={() => handleNodeDetailClick(message.nodeData)}
-                              className='h-7 text-xs px-2'>
+                              className='h-7 text-xs px-2 flex items-center gap-1'>
+                              <Eye className='w-3 h-3' />
                               Open Detail
                             </Button>
+
                             {handleAddSubfeature && (
                               <Button
                                 variant='outline'
                                 size='sm'
-                                onClick={() => handleAddSubfeature(message.nodeData)}
-                                className='h-7 text-xs px-2'>
+                                onClick={() => handleAddSubfeature(message.nodeData.id)}
+                                className='h-7 text-xs px-2 flex items-center gap-1'>
+                                <Plus className='w-3 h-3' />
                                 Add Subfeature
                               </Button>
                             )}
+
                             {handleEditFeature && (
                               <Button
                                 variant='outline'
                                 size='sm'
                                 onClick={() => handleEditFeature(message.nodeData)}
-                                className='h-7 text-xs px-2'>
+                                className='h-7 text-xs px-2 flex items-center gap-1'>
+                                <Pencil className='w-3 h-3' />
                                 Edit Feature
                               </Button>
                             )}
+
                             {handleDeleteFeature && (
                               <Button
                                 variant='destructive'
                                 size='sm'
                                 onClick={() => handleDeleteFeature(message.nodeData)}
-                                className='h-7 text-xs px-2'>
+                                className='h-7 text-xs px-2 flex items-center gap-1'>
+                                <Trash className='w-3 h-3' />
                                 Delete Feature
                               </Button>
                             )}
@@ -306,7 +325,7 @@ export function ChatWidget({
                 {/* Input */}
                 <div className='p-4 border-t'>
                   <form onSubmit={handleSubmit} className='flex gap-2'>
-                    <Input
+                    <Textarea
                       value={inputValue}
                       onChange={e => setInputValue(e.target.value)}
                       onKeyPress={handleKeyPress}

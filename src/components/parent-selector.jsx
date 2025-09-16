@@ -16,8 +16,6 @@ import { FileText } from 'lucide-react'
 const ParentSelector = ({ isOpen, onClose, tree, onSelectParent }) => {
   const [selectedParentId, setSelectedParentId] = useState(null)
 
-  // Render the node tree recursively
-  // This function will create a visual representation of the tree structure
   const renderNodeTree = (node, level = 0) => {
     const isSelected = selectedParentId === node.id
     const hasChildren = node.children && node.children.length > 0
@@ -46,8 +44,6 @@ const ParentSelector = ({ isOpen, onClose, tree, onSelectParent }) => {
     )
   }
 
-  // Handle confirm action
-  // This function will call the onSelectParent callback with the selected parent ID
   const handleConfirm = () => {
     if (selectedParentId) {
       onSelectParent(selectedParentId)
@@ -62,7 +58,7 @@ const ParentSelector = ({ isOpen, onClose, tree, onSelectParent }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className='max-w-2xl max-h-[80vh]'>
+      <DialogContent className='!max-w-[50vw] !max-h-[70vh]'>
         <DialogHeader>
           <DialogTitle>Select Parent Feature</DialogTitle>
           <p className='text-sm text-muted-foreground'>

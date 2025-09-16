@@ -16,13 +16,13 @@ import UseCaseInput from './use-case-input'
 
 const NodeEditor = ({
   node,
+  parentNode,
   onSave,
   onCancel,
   isOpen,
   allUseCases,
   onAllUseCasesChange,
 }) => {
-  // State to manage form data and validation errors
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -31,7 +31,6 @@ const NodeEditor = ({
   })
   const [errors, setErrors] = useState({})
 
-  // Effect to initialize form data when the dialog opens or node changes (node, isOpen)
   useEffect(() => {
     if (node) {
       setFormData({
@@ -51,7 +50,6 @@ const NodeEditor = ({
     setErrors({})
   }, [node, isOpen])
 
-  // Function to validate the form data (Node name is required)
   const validateForm = () => {
     const newErrors = {}
     if (!formData.name.trim()) {
@@ -61,8 +59,6 @@ const NodeEditor = ({
     return Object.keys(newErrors).length === 0
   }
 
-  // Handle form submission
-  // Prevent default form submission, validate the form, and call onSave with formData
   const handleSubmit = e => {
     e.preventDefault()
     if (validateForm()) {
@@ -70,8 +66,6 @@ const NodeEditor = ({
     }
   }
 
-  // Handle input changes for form fields
-  // Update formData state and clear any existing error for the field
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (errors[field]) {
@@ -79,7 +73,6 @@ const NodeEditor = ({
     }
   }
 
-  // Handle changes to use cases
   const handleUseCasesChange = newUseCases => {
     setFormData(prev => ({ ...prev, useCases: newUseCases }))
   }
@@ -88,7 +81,11 @@ const NodeEditor = ({
     <Dialog open={isOpen} onOpenChange={onCancel}>
       <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>{node ? 'Edit Feature' : 'Create New Feature'}</DialogTitle>
+          <DialogTitle>
+            {node
+              ? 'Edit Feature'
+              : `Create new feature for ${parentNode ? parentNode.name : ''}`}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className='space-y-6'>
@@ -105,7 +102,6 @@ const NodeEditor = ({
             {errors.name && <p className='text-sm text-red-500'>{errors.name}</p>}
           </div>
 
-          {/* Description */}
           <div className='space-y-2'>
             <Label htmlFor='description'>Description</Label>
             <Textarea
@@ -117,7 +113,6 @@ const NodeEditor = ({
             />
           </div>
 
-          {/* Use Cases */}
           <div className='space-y-2'>
             <Label>Use Cases</Label>
             <UseCaseInput
@@ -131,7 +126,6 @@ const NodeEditor = ({
             </p>
           </div>
 
-          {/* Value Proposition */}
           <div className='space-y-2'>
             <Label htmlFor='valueProposition'>Value Proposition</Label>
             <Textarea

@@ -22,33 +22,16 @@ const SitemapCanvas = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  // Fixed node dimensions
+
   const NODE_WIDTH = Number(process.env.NEXT_PUBLIC_NODE_WIDTH)
   const NODE_HEIGHT = Number(process.env.NEXT_PUBLIC_NODE_HEIGHT)
   const LEVEL_HEIGHT = Number(process.env.NEXT_PUBLIC_LEVEL_HEIGHT)
 
-  // Update dimensions on resize
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        setDimensions({ width: rect.width, height: rect.height })
-      }
-    }
-
-    updateDimensions()
-    window.addEventListener('resize', updateDimensions)
-    return () => window.removeEventListener('resize', updateDimensions)
-  }, [])
-
-  // Handle mouse events
   const handleMouseDown = useCallback(
     e => {
-      // If the click is on a node element, do not start dragging
       if (e.target.closest('.node-element')) return
       setIsDragging(true)
 
-      // Calculate the starting point for dragging
       setDragStart({
         x: e.clientX - transform.x,
         y: e.clientY - transform.y,
@@ -61,7 +44,6 @@ const SitemapCanvas = ({
     e => {
       if (!isDragging) return
 
-      // Update the transform based on mouse movement (dragStart)
       setTransform(prev => ({
         ...prev,
         x: e.clientX - dragStart.x,
@@ -71,26 +53,21 @@ const SitemapCanvas = ({
     [isDragging, dragStart],
   )
 
-  // Handle mouse up to stop dragging
   const handleMouseUp = useCallback(() => {
     setIsDragging(false)
   }, [])
 
-  // Handle mouse wheel for zooming
   const handleWheel = useCallback(
     e => {
-      // Prevent default scrolling behavior (e.g., page scroll)
       e.preventDefault()
       const delta = e.deltaY > 0 ? 0.9 : 1.1
       const newScale = Math.max(0.1, Math.min(3, transform.scale * delta))
 
-      // Calculate the new position based on the mouse position
       setTransform(prev => ({ ...prev, scale: newScale }))
     },
     [transform.scale],
   )
 
-  // Fixed expand/collapse handler
   const handleExpandCollapseClick = useCallback(
     (e, nodeId) => {
       e.preventDefault()
@@ -101,7 +78,6 @@ const SitemapCanvas = ({
     [onNodeToggle],
   )
 
-  // Zoom controls
   const zoomIn = () =>
     setTransform(prev => ({ ...prev, scale: Math.min(3, prev.scale * 1.2) }))
   const zoomOut = () =>
@@ -110,14 +86,11 @@ const SitemapCanvas = ({
       scale: Math.max(0.1, prev.scale / 1.2),
     }))
 
-  // Simplified reset view - just reset to initial position and scale
   const resetView = () => {
     setTransform({ x: 0, y: 0, scale: 1 })
   }
 
-  // Event listeners
   useEffect(() => {
-    // Ensure the container is available before adding event listeners
     const container = containerRef.current
     if (!container) return
 
@@ -125,8 +98,6 @@ const SitemapCanvas = ({
     container.addEventListener('mousemove', handleMouseMove)
     container.addEventListener('mouseup', handleMouseUp)
     container.addEventListener('mouseleave', handleMouseUp)
-
-    // Use passive: false to allow preventDefault in wheel event
     container.addEventListener('wheel', handleWheel, { passive: false })
 
     return () => {
@@ -138,30 +109,27 @@ const SitemapCanvas = ({
     }
   }, [handleMouseDown, handleMouseMove, handleMouseUp, handleWheel])
 
-  // Get node color based on type and state
   const getNodeColor = node => {
     const isSelected = selectedNodeId === node.id
     const isSearchResult = searchResults.some(result => result.node.id === node.id)
 
-    if (isSelected) return '#f97316' // orange-500 - selected
+    if (isSelected) return '#f97316'
     if (isSearchResult) {
-      // Different colors for exact vs synonym matches
       const result = searchResults.find(r => r.node.id === node.id)
-      return result?.matchType === 'exact' ? '#10b981' : '#3b82f6' // green for exact, blue for synonym
+      return result?.matchType === 'exact' ? '#10b981' : '#3b82f6'
     }
 
-    // Root node gets purple color, others get white
-    return node.id === tree.id ? '#7c3aed' : '#ffffff' // violet-600 - root
+    return node.id === tree.id ? '#7c3aed' : '#ffffff'
   }
 
   const getNodeStroke = node => {
     const isSelected = selectedNodeId === node.id
     const isSearchResult = searchResults.some(result => result.node.id === node.id)
 
-    if (isSelected) return '#ea580c' // orange-600 - stroke cho selected
+    if (isSelected) return '#ea580c'
     if (isSearchResult) {
       const result = searchResults.find(r => r.node.id === node.id)
-      return result?.matchType === 'exact' ? '#059669' : '#2563eb' // darker green/blue for stroke
+      return result?.matchType === 'exact' ? '#059669' : '#2563eb'
     }
     return node.id === tree.id ? 'none' : '#e5e7eb'
   }
@@ -174,7 +142,6 @@ const SitemapCanvas = ({
     return isRoot || isSelected || isSearchResult ? '#ffffff' : '#374151'
   }
 
-  // Render individual node
   const renderNode = node => {
     const position = nodePositions.get(node.id)
     if (!position) return null
@@ -187,7 +154,6 @@ const SitemapCanvas = ({
     const isRoot = node.id === tree.id
     const isSearchResult = searchResults.some(result => result.node.id === node.id)
 
-    // Helper function to wrap text
     const wrapText = (text, maxLength) => {
       if (!text || text.length <= maxLength) return [text || '']
 
@@ -205,25 +171,20 @@ const SitemapCanvas = ({
       }
       if (currentLine) lines.push(currentLine)
 
-      // Limit to 2 lines for description
       if (lines.length > 2) {
         lines[1] = lines[1].substring(0, maxLength - 3) + '...'
         return lines.slice(0, 2)
       }
       return lines
     }
-    // Wrap the feature name (allow up to 2 lines)
     const nameLines = wrapText(node.name, 32)
 
-    // Wrap the description (allow up to 2 lines, shorter per line)
     const descriptionLines = node.description
       ? wrapText(node.description, 35)
       : ['No description']
 
     return (
-      // Use a unique key for each node element to ensure React can track changes and updates
       <g key={node.id} className='node-element'>
-        {/* Node shadow */}
         <rect
           x={position.x - NODE_WIDTH / 2 + 2}
           y={position.y - NODE_HEIGHT / 2 + 2}
@@ -233,7 +194,6 @@ const SitemapCanvas = ({
           fill='rgba(0,0,0,0.1)'
         />
 
-        {/* Search result glow effect */}
         {isSearchResult && (
           <rect
             x={position.x - NODE_WIDTH / 2 - 3}
@@ -249,7 +209,6 @@ const SitemapCanvas = ({
           />
         )}
 
-        {/* Node background */}
         <rect
           x={position.x - NODE_WIDTH / 2}
           y={position.y - NODE_HEIGHT / 2}
@@ -263,7 +222,6 @@ const SitemapCanvas = ({
           onClick={() => onNodeClick(node)}
         />
 
-        {/* Node title - multi-line support */}
         {nameLines.map((line, index) => (
           <text
             key={`name-${index}`}
@@ -278,7 +236,6 @@ const SitemapCanvas = ({
           </text>
         ))}
 
-        {/* Node description - multi-line support */}
         {descriptionLines.map((line, index) => (
           <text
             key={`desc-${index}`}
@@ -296,7 +253,6 @@ const SitemapCanvas = ({
           </text>
         ))}
 
-        {/* Children count badge */}
         {hasChildren && (
           <g>
             <circle
@@ -319,7 +275,6 @@ const SitemapCanvas = ({
           </g>
         )}
 
-        {/* Expand/collapse button */}
         {hasChildren && (
           <g>
             <circle
@@ -352,7 +307,6 @@ const SitemapCanvas = ({
     )
   }
 
-  // Render connections between nodes
   const renderConnections = node => {
     const position = nodePositions.get(node.id)
     if (!position || node.isExpanded === false || !node.children) return null
@@ -376,7 +330,6 @@ const SitemapCanvas = ({
     })
   }
 
-  // Render all nodes recursively
   const renderAllNodes = node => {
     const elements = [renderNode(node), renderConnections(node)]
 
@@ -386,11 +339,9 @@ const SitemapCanvas = ({
       })
     }
 
-    // Flatten the elements array to avoid nested arrays
     return elements.flat()
   }
 
-  // Calculate SVG dimensions to ensure all content is visible
   const bounds = getContentBounds()
   const svgWidth = Math.max(dimensions.width, bounds.width)
   const svgHeight = Math.max(dimensions.height, bounds.height)
@@ -424,19 +375,18 @@ const SitemapCanvas = ({
         </Button>
       </div>
 
-      {/* Scale Indicator - Sticky */}
       <div className='fixed bottom-4 right-4 z-40 bg-white/95 backdrop-blur px-3 py-2 rounded-lg text-sm text-gray-600 border shadow-lg'>
         {Math.round(transform.scale * 100)}%
       </div>
 
-      {/* Instructions - Sticky */}
-      <div className='fixed bottom-4 left-4 z-40 bg-white/95 backdrop-blur px-4 py-3 rounded-lg text-xs text-gray-600 border shadow-lg max-w-48'>
+      {/* <div className='fixed bottom-4 left-4 z-40 bg-white/95 backdrop-blur px-4 py-3 rounded-lg text-xs text-gray-600 border shadow-lg max-w-48'>
         <div className='font-medium mb-1'>Controls:</div>
         <div>• Click nodes to view details</div>
         <div>• Use +/− to expand/collapse</div>
         <div>• Drag to pan, scroll to zoom</div>
         <div>• Search highlights matches</div>
-      </div>
+      </div> */}
+
       {/* SVG Canvas */}
       <svg
         ref={svgRef}

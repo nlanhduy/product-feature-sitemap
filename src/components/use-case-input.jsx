@@ -20,23 +20,20 @@ const UseCaseInput = ({
   allUseCases = [],
   onAllUseCasesChange,
 }) => {
-  const minLength = 2 // Minimum length for suggestions
+  const minLength = 2
 
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isAllUseCasesOpen, setIsAllUseCasesOpen] = useState(false)
 
-  // Handle input change and show suggestions
   useEffect(() => {
     if (inputValue.trim() && inputValue.length >= minLength && allUseCases.length > 0) {
       const queryLower = inputValue.toLowerCase()
 
-      // Filter suggestions based on input value and existing use cases
       const filtered = allUseCases.filter(useCase => {
         const words = useCase.toLowerCase().split(' ')
 
-        // Just return suggestions that start with the input value
         return (
           words.some(word => word.startsWith(queryLower)) && !useCases.includes(useCase)
         )
@@ -53,19 +50,15 @@ const UseCaseInput = ({
   const handleAddUseCase = (useCase = inputValue.trim()) => {
     if (!useCase) return
 
-    // Add to all use cases if it's new
     if (!allUseCases.includes(useCase)) {
-      // Ensure allUseCases is sorted and unique
       const newAllUseCases = [...allUseCases, useCase].sort()
       onAllUseCasesChange(newAllUseCases)
     }
 
-    // Add to current selection if not already there
     if (!useCases.includes(useCase)) {
       onUseCasesChange([...useCases, useCase])
     }
 
-    // Clear input and hide suggestions
     setInputValue('')
     setShowSuggestions(false)
   }
@@ -80,10 +73,8 @@ const UseCaseInput = ({
 
   const handleSelectFromAll = useCase => {
     if (useCases.includes(useCase)) {
-      // If already selected, remove it
       onUseCasesChange(useCases.filter(u => u !== useCase))
     } else {
-      // If not selected, add it
       onUseCasesChange([...useCases, useCase])
     }
   }
@@ -109,7 +100,6 @@ const UseCaseInput = ({
         </div>
       )}
 
-      {/* Input with suggestions */}
       <div className='relative'>
         <div className='flex gap-2'>
           <div className='relative flex-1'>
@@ -120,7 +110,6 @@ const UseCaseInput = ({
               className='pr-10'
             />
 
-            {/* Suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
               <>
                 {suggestions.length >= 5 ? (
@@ -172,7 +161,6 @@ const UseCaseInput = ({
         </div>
       </div>
 
-      {/* All Use Cases Dialog */}
       <Dialog open={isAllUseCasesOpen} onOpenChange={setIsAllUseCasesOpen}>
         <DialogContent className='max-w-md max-h-[70vh]'>
           <DialogHeader>

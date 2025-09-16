@@ -15,18 +15,17 @@ import treeUtils from '@/lib/tree-utils'
 import useCaseStorage from '@/lib/use-case-utils'
 import { initialTree } from '@/data/sample-tree'
 import { ChatWidget } from './chat-widget'
+import { useLog } from '@/hook/useLog'
 
 export default function Home() {
-  // State management for the feature map
-  // Using useState to manage the tree structure, use cases
   const [tree, setTree] = useState(initialTree)
   const [allUseCases, setAllUseCases] = useState([])
   const containerRef = useRef(null)
   const svgRef = useRef(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
-
-  // State for managing selected node, search results, and modal visibility
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
   const [selectedNodeId, setSelectedNodeId] = useState(null)
+
   const [searchResults, setSearchResults] = useState([])
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
@@ -36,18 +35,15 @@ export default function Home() {
   const [parentIdForNewNode, setParentIdForNewNode] = useState(null)
   const [nodeToDelete, setNodeToDelete] = useState(null)
 
-  // Ref to prevent double execution in strict mode
   const isProcessingRef = useRef(false)
 
   const NODE_WIDTH = Number(process.env.NEXT_PUBLIC_NODE_WIDTH)
   const NODE_HEIGHT = Number(process.env.NEXT_PUBLIC_NODE_HEIGHT)
   const LEVEL_HEIGHT = Number(process.env.NEXT_PUBLIC_LEVEL_HEIGHT)
 
-  // Calculate node positions - now only calculates once and keeps positions fixed
   const calculateLayout = useCallback((node, level = 0) => {
     const positions = new Map()
 
-    // Calculate the width needed for each subtree (considering all nodes, not just expanded ones)
     const calculateSubtreeWidth = node => {
       if (!node.children || node.children.length === 0) {
         return NODE_WIDTH + 50
@@ -60,7 +56,6 @@ export default function Home() {
       return Math.max(NODE_WIDTH + 50, childrenWidth)
     }
 
-    // Position all nodes regardless of expand/collapse state
     const layoutNode = (
       node,
       level,
@@ -72,14 +67,11 @@ export default function Home() {
       let x = parentX
 
       if (level === 0) {
-        // Root node - center it based on total tree width
         const totalTreeWidth = calculateSubtreeWidth(node)
         x = totalTreeWidth / 2
       } else if (siblings.length === 1) {
-        // Single child - position directly under parent
         x = parentX
       } else {
-        // Multiple siblings - distribute evenly
         const totalSiblingsWidth = siblings.reduce((total, sibling) => {
           return total + calculateSubtreeWidth(sibling)
         }, 0)
@@ -96,7 +88,6 @@ export default function Home() {
       const y = 80 + level * LEVEL_HEIGHT
       positions.set(node.id, { x, y, level, node })
 
-      // Layout ALL children regardless of expansion state
       if (node.children && node.children.length > 0) {
         const mySubtreeWidth = calculateSubtreeWidth(node)
         node.children.forEach((child, index) => {
@@ -109,18 +100,13 @@ export default function Home() {
     return positions
   }, [])
 
-  // Only recalculate positions when tree structure changes (new nodes added/removed)
   const nodePositions = useMemo(() => calculateLayout(tree), [tree])
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
 
-  // Initialize use cases from initial data on first load
   useEffect(() => {
     const initialUseCases = useCaseStorage.initializeUseCases(initialTree)
     setAllUseCases(initialUseCases)
   }, [])
 
-  // Enhanced search functionality
-  // useCallback is used to memoize the search function and prevent unnecessary re-renders the children components
   const handleSearch = useCallback(
     query => {
       if (!query.trim()) {
@@ -133,6 +119,19 @@ export default function Home() {
     },
     [tree],
   )
+
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setDimensions({ width: rect.width, height: rect.height })
+      }
+    }
+
+    updateDimensions()
+    window.addEventListener('resize', updateDimensions)
+    return () => window.removeEventListener('resize', updateDimensions)
+  }, [])
 
   const handleClearSearch = useCallback(() => {
     setSearchResults([])
@@ -165,36 +164,34 @@ export default function Home() {
     }
   }, [nodePositions, dimensions])
 
-  const focusNode = (nodeId, nodePositions, svgRef, setTransform) => {
-    if (!nodePositions) return
-    const pos = nodePositions.get(nodeId)
-    if (!pos) return
-    if (!svgRef.current) return
+  const focusOnNode = nodeId => {
+    const position = nodePositions.get(nodeId)
+    if (!position || !containerRef.current) return
 
-    const { width: viewportWidth, height: viewportHeight } =
-      svgRef.current.getBoundingClientRect()
+    const { width, height } = dimensions
 
-    setTransform(prev => {
-      const scale = prev.scale || 1
+    const containerCenterX = width / 2
+    const containerCenterY = height / 2
 
-      const targetX = viewportWidth / 2 - pos.x * scale
-      const targetY = viewportHeight / 2 - pos.y * scale
+    const newX = containerCenterX - position.x * transform.scale
+    const newY = containerCenterY - position.y * transform.scale
 
-      return { ...prev, x: targetX, y: targetY }
-    })
+    setTransform(prev => ({
+      ...prev,
+      x: newX,
+      y: newY,
+    }))
   }
 
   const handleSelectSearchResult = useCallback(
     result => {
       setSelectedNodeId(result.id)
       setIsDetailsOpen(true)
-
-      focusNode(result.id, nodePositions, svgRef, setTransform)
+      focusOnNode(result.id)
     },
     [nodePositions, setTransform],
   )
 
-  // Node operations
   const handleNodeClick = useCallback(node => {
     setSelectedNodeId(node.id)
     setIsDetailsOpen(true)
@@ -248,7 +245,6 @@ export default function Home() {
     setIsParentSelectorOpen(false)
   }, [])
 
-  // New handler for Add Node button in header
   const handleAddNodeFromHeader = useCallback(() => {
     setIsParentSelectorOpen(true)
   }, [])
@@ -262,7 +258,6 @@ export default function Home() {
 
   const handleSaveNode = useCallback(
     formData => {
-      // Prevent double execution in strict mode
       if (isProcessingRef.current) return
       isProcessingRef.current = true
 
@@ -270,10 +265,8 @@ export default function Home() {
         const newTree = treeUtils.deepClone(prevTree)
 
         if (editingNode) {
-          // Update existing node
           treeUtils.updateNode(newTree, editingNode.id, formData)
         } else {
-          // Create new node
           const newNode = {
             id: treeUtils.generateId(),
             ...formData,
@@ -291,7 +284,6 @@ export default function Home() {
       setEditingNode(null)
       setParentIdForNewNode(null)
 
-      // Reset the processing flag after a short delay
       setTimeout(() => {
         isProcessingRef.current = false
       }, 100)
@@ -315,7 +307,6 @@ export default function Home() {
   const handleConfirmDelete = useCallback(() => {
     if (!nodeToDelete) return
 
-    // Prevent double execution in strict mode
     if (isProcessingRef.current) return
     isProcessingRef.current = true
 
@@ -329,7 +320,6 @@ export default function Home() {
     setSelectedNodeId(null)
     setNodeToDelete(null)
 
-    // Reset the processing flag after a short delay
     setTimeout(() => {
       isProcessingRef.current = false
     }, 100)
@@ -354,12 +344,10 @@ export default function Home() {
     setNodeToDelete(null)
   }, [])
 
-  // Handle use cases changes
   const handleAllUseCasesChange = useCallback(newAllUseCases => {
     setAllUseCases(newAllUseCases)
   }, [])
 
-  // Data export/import
   const handleExportData = useCallback(() => {
     const exportData = {
       tree,
@@ -384,7 +372,6 @@ export default function Home() {
       try {
         const importedData = JSON.parse(e.target.result)
 
-        // Handle both old format (just tree) and new format (tree + allUseCases)
         if (importedData.tree) {
           setTree(importedData.tree)
           setAllUseCases(
@@ -400,12 +387,11 @@ export default function Home() {
       }
     }
     reader.readAsText(file)
-    event.target.value = '' // Reset input
+    event.target.value = ''
   }, [])
 
   return (
     <div className='h-screen flex flex-col bg-background'>
-      {/* Sticky Header */}
       <header className='sticky top-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm'>
         <div className='flex items-center justify-between p-4'>
           <div className='flex items-center gap-4'>
@@ -447,9 +433,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className='flex-1 flex'>
-        {/* Canvas Area */}
         <div className='flex-1'>
           <SitemapCanvas
             tree={tree}
@@ -469,9 +453,11 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Modals and Dialogs */}
       <NodeEditor
         node={editingNode}
+        parentNodeId={
+          parentIdForNewNode ? treeUtils.findNode(tree, parentIdForNewNode) : null
+        }
         onSave={handleSaveNode}
         onCancel={handleCancelEdit}
         isOpen={isEditorOpen}
@@ -497,6 +483,7 @@ export default function Home() {
 
       <ChatWidget
         tree={tree}
+        handleMoveToNode={focusOnNode}
         handleNodeDetailClick={handleNodeClick}
         handleAddSubfeature={handleAddChild}
         handleEditFeature={handleEditNode}

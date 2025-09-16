@@ -29,7 +29,6 @@ const NodeDetails = ({ node, onEdit, onDelete, onAddChild, isOpen, onClose }) =>
         </SheetHeader>
 
         <div className='mt-6 space-y-6'>
-          {/* Basic Info */}
           <Card>
             <CardHeader className='pb-3'>
               <CardTitle className='text-lg flex items-center gap-2'>
@@ -49,7 +48,6 @@ const NodeDetails = ({ node, onEdit, onDelete, onAddChild, isOpen, onClose }) =>
             </CardContent>
           </Card>
 
-          {/* Use Cases */}
           {node.useCases && node.useCases.length > 0 && (
             <Card>
               <CardHeader className='pb-3'>
@@ -74,7 +72,6 @@ const NodeDetails = ({ node, onEdit, onDelete, onAddChild, isOpen, onClose }) =>
             </Card>
           )}
 
-          {/* Value Proposition */}
           {node.valueProposition && (
             <Card>
               <CardHeader className='pb-3'>
@@ -91,7 +88,6 @@ const NodeDetails = ({ node, onEdit, onDelete, onAddChild, isOpen, onClose }) =>
             </Card>
           )}
 
-          {/* Hierarchy Info */}
           <Card>
             <CardHeader className='pb-3'>
               <CardTitle className='text-lg flex items-center gap-2'>
@@ -115,7 +111,6 @@ const NodeDetails = ({ node, onEdit, onDelete, onAddChild, isOpen, onClose }) =>
             </CardContent>
           </Card>
 
-          {/* Actions */}
           <Card>
             <CardHeader className='pb-3'>
               <CardTitle className='text-lg'>Actions</CardTitle>

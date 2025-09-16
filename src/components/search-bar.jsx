@@ -10,7 +10,7 @@ import debounce from 'lodash.debounce'
 import { Separator } from './ui/separator'
 
 const SearchBar = ({ onSearch, searchResults = [], onSelectResult, onClearSearch }) => {
-  const timeToWait = 300 // Debounce time in milliseconds
+  const timeToWait = 300
 
   const [query, setQuery] = useState('')
   const [showResults, setShowResults] = useState(false)
@@ -31,7 +31,6 @@ const SearchBar = ({ onSearch, searchResults = [], onSelectResult, onClearSearch
   useEffect(() => {
     debouncedSearch(query)
 
-    // Cleanup function to cancel the debounced search to make sure just the latest search is processed
     return () => {
       debouncedSearch.cancel()
     }
@@ -66,8 +65,6 @@ const SearchBar = ({ onSearch, searchResults = [], onSelectResult, onClearSearch
       : 'bg-blue-100 text-blue-800'
   }
 
-  // Render matched terms and synonyms
-  // This function will display the matched terms and synonyms in badges
   const renderMatchInfo = matchInfo => {
     const { matchedTerms, matchedSynonyms } = matchInfo
 
