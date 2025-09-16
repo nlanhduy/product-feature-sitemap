@@ -59,7 +59,6 @@ export function ChatWidget({
   const sendMessage = async message => {
     if (!message.trim() || isLoading) return
 
-    // Add user message immediately
     const userMessage = {
       id: `user_${Date.now()}`,
       text: message,
@@ -83,10 +82,7 @@ export function ChatWidget({
       })
 
       const data = await response.json()
-      console.log(data)
-
       if (data.success && data.message) {
-        // Update session ID if provided
         if (data.session_id) {
           setSessionId(data.session_id)
         }
@@ -96,7 +92,6 @@ export function ChatWidget({
           nodeData = treeUtils.findNode(tree, data.metadata.current_context.current_node)
         }
 
-        // Add bot response
         const botMessage = {
           id: `bot_${Date.now()}`,
           text: data.message,
@@ -106,7 +101,6 @@ export function ChatWidget({
         }
         setMessages(prev => [...prev, botMessage])
       } else {
-        // Handle error
         const errorMessage = {
           id: `error_${Date.now()}`,
           text: data.error || 'Sorry, something went wrong. Please try again.',
