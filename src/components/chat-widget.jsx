@@ -207,7 +207,7 @@ export function ChatWidget({
                               variant='ghost'
                               size='sm'
                               onClick={() => {
-                                handleMoveToNode(message.nodeData.id)
+                                handleMoveToNode(message.nodeData)
                                 handleNodeDetailClick(message.nodeData)
                               }}
                               className='h-6 w-6 p-0'>
@@ -249,12 +249,12 @@ export function ChatWidget({
                             <strong>Value:</strong> {message.nodeData.valueProposition}
                           </div>
 
-                          <div className='flex flex-wrap gap-4 mt-2'>
+                          <div className='flex flex-wrap gap-2 mt-2'>
                             <Button
                               variant='outline'
                               size='sm'
                               onClick={() => handleNodeDetailClick(message.nodeData)}
-                              className='h-7 text-xs px-2 flex items-center gap-1'>
+                              className='h-7 text-xs px-2 flex items-center gap-1 basis-[45%]'>
                               <Eye className='w-3 h-3' />
                               Open Detail
                             </Button>
@@ -264,7 +264,7 @@ export function ChatWidget({
                                 variant='outline'
                                 size='sm'
                                 onClick={() => handleAddSubfeature(message.nodeData.id)}
-                                className='h-7 text-xs px-2 flex items-center gap-1'>
+                                className='h-7 text-xs px-2 flex items-center gap-1 basis-[45%]'>
                                 <Plus className='w-3 h-3' />
                                 Add Subfeature
                               </Button>
@@ -275,8 +275,8 @@ export function ChatWidget({
                                 variant='outline'
                                 size='sm'
                                 onClick={() => handleEditFeature(message.nodeData)}
-                                className='h-7 text-xs px-2 flex items-center gap-1'>
-                                <Pencil className='w-3 h-3' />
+                                className='h-7 text-xs px-2 flex items-center gap-1 basis-[45%]'>
+                                <Pencil className='w-3  h-3' />
                                 Edit Feature
                               </Button>
                             )}
@@ -285,8 +285,8 @@ export function ChatWidget({
                               <Button
                                 variant='destructive'
                                 size='sm'
-                                onClick={() => handleDeleteFeature(message.nodeData)}
-                                className='h-7 text-xs px-2 flex items-center gap-1'>
+                                onClick={() => handleDeleteFeature(message.nodeData.id)}
+                                className='h-7 text-xs px-2 flex items-center gap-1 basis-[50%]'>
                                 <Trash className='w-3 h-3' />
                                 Delete Feature
                               </Button>

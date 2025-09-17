@@ -4,6 +4,7 @@ import React from 'react'
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
+import { Input } from './ui/input'
 
 const SitemapCanvas = ({
   tree,
@@ -18,8 +19,13 @@ const SitemapCanvas = ({
   getContentBounds,
   nodePositions,
   svgRef,
+  isLoading,
+  focusOnNode,
+  level,
+  setLevel,
   searchResults = [],
 }) => {
+  if (isLoading) return
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
@@ -56,16 +62,25 @@ const SitemapCanvas = ({
   const handleMouseUp = useCallback(() => {
     setIsDragging(false)
   }, [])
-
   const handleWheel = useCallback(
     e => {
       e.preventDefault()
-      const delta = e.deltaY > 0 ? 0.9 : 1.1
-      const newScale = Math.max(0.1, Math.min(3, transform.scale * delta))
 
-      setTransform(prev => ({ ...prev, scale: newScale }))
+      const rect = containerRef.current.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      setTransform(prev => {
+        const newScale = Math.max(0.1, Math.min(3, prev.scale * delta))
+
+        const offsetX = mouseX - (mouseX - prev.x) * (newScale / prev.scale)
+        const offsetY = mouseY - (mouseY - prev.y) * (newScale / prev.scale)
+
+        return { ...prev, scale: newScale, x: offsetX, y: offsetY }
+      })
     },
-    [transform.scale],
+    [setTransform],
   )
 
   const handleExpandCollapseClick = useCallback(
@@ -87,7 +102,7 @@ const SitemapCanvas = ({
     }))
 
   const resetView = () => {
-    setTransform({ x: 0, y: 0, scale: 1 })
+    focusOnNode('customer-experience')
   }
 
   useEffect(() => {
@@ -143,6 +158,7 @@ const SitemapCanvas = ({
   }
 
   const renderNode = node => {
+    if (!node) return
     const position = nodePositions.get(node.id)
     if (!position) return null
 
@@ -308,6 +324,8 @@ const SitemapCanvas = ({
   }
 
   const renderConnections = node => {
+    if (!node) return
+
     const position = nodePositions.get(node.id)
     if (!position || node.isExpanded === false || !node.children) return null
 
@@ -331,6 +349,8 @@ const SitemapCanvas = ({
   }
 
   const renderAllNodes = node => {
+    if (!node) return
+
     const elements = [renderNode(node), renderConnections(node)]
 
     if (node.isExpanded !== false && node.children) {
@@ -343,8 +363,14 @@ const SitemapCanvas = ({
   }
 
   const bounds = getContentBounds()
-  const svgWidth = Math.max(dimensions.width, bounds.width)
-  const svgHeight = Math.max(dimensions.height, bounds.height)
+  let svgWidth, svgHeight
+  if (!bounds) {
+    svgWidth = dimensions.width
+    svgHeight = dimensions.height
+  } else {
+    svgWidth = Math.max(dimensions.width, bounds.width)
+    svgHeight = Math.max(dimensions.height, bounds.height)
+  }
 
   return (
     <div
@@ -372,7 +398,15 @@ const SitemapCanvas = ({
           onClick={resetView}
           className='shadow-lg bg-white/95 backdrop-blur'>
           <Maximize2 className='w-4 h-4' />
-        </Button>
+        </Button>{' '}
+        <Input
+          id='level-input'
+          type='number'
+          value={level}
+          onChange={e => setLevel(e.target.value)}
+          placeholder={level}
+          className='w-16 h-8 shadow-lg bg-white/95 backdrop-blur'
+        />
       </div>
 
       <div className='fixed bottom-4 right-4 z-40 bg-white/95 backdrop-blur px-3 py-2 rounded-lg text-sm text-gray-600 border shadow-lg'>

@@ -19,22 +19,21 @@ const treeUtils = {
     return null
   },
 
-   getAllChildrenNames: (tree, targetId) => {
-    const node = treeUtils.findNode(tree, targetId);
-    if (!node) return [];
+  getAllChildrenNames: (tree, targetId) => {
+    const node = treeUtils.findNode(tree, targetId)
+    if (!node) return []
 
-    const result = [];
-    const traverse = (n) => {
+    const result = []
+    const traverse = n => {
       for (const child of n.children || []) {
-        if (child.name) result.push(child.name);
-        traverse(child);
+        if (child.name) result.push(child.name)
+        traverse(child)
       }
-    };
+    }
 
-    traverse(node);
-    return result;
+    traverse(node)
+    return result
   },
-
 
   addNode: (tree, parentId, newNode) => {
     if (tree.id === parentId) {
@@ -89,6 +88,60 @@ const treeUtils = {
       ...node,
       children: node.children ? node.children.map(treeUtils.deepClone) : [],
     }
+  },
+
+  addIsExpandedProperty(node, currentLevel = 0, expandUntilLevel = 1) {
+    function processNode(currentNode, level) {
+      currentNode.isExpanded = level <= expandUntilLevel
+
+      if (
+        currentNode.children &&
+        Array.isArray(currentNode.children) &&
+        currentNode.children.length > 0
+      ) {
+        currentNode.children = currentNode.children.map(child =>
+          processNode({ ...child }, level + 1),
+        )
+      }
+
+      return currentNode
+    }
+
+    return processNode({ ...node }, currentLevel)
+  },
+
+  collectAllUseCases(rootNode) {
+    const useCasesSet = new Set()
+
+    function traverseNode(node) {
+      if (node.useCases && Array.isArray(node.useCases)) {
+        node.useCases.forEach(useCase => {
+          if (typeof useCase === 'object' && useCase !== null) {
+            if (useCase.id) {
+              useCasesSet.add(JSON.stringify(useCase))
+            }
+          } else {
+            useCasesSet.add(useCase)
+          }
+        })
+      }
+
+      if (node.children && Array.isArray(node.children)) {
+        node.children.forEach(child => traverseNode(child))
+      }
+    }
+
+    traverseNode(rootNode)
+
+    const result = Array.from(useCasesSet).map(item => {
+      try {
+        return JSON.parse(item)
+      } catch (e) {
+        return item
+      }
+    })
+
+    return result
   },
 }
 

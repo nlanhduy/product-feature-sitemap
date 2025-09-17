@@ -13,6 +13,32 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { FileText } from 'lucide-react'
 
+const toRoman = num => {
+  const romanMap = [
+    [1000, 'M'],
+    [900, 'CM'],
+    [500, 'D'],
+    [400, 'CD'],
+    [100, 'C'],
+    [90, 'XC'],
+    [50, 'L'],
+    [40, 'XL'],
+    [10, 'X'],
+    [9, 'IX'],
+    [5, 'V'],
+    [4, 'IV'],
+    [1, 'I'],
+  ]
+  let result = ''
+  for (const [value, symbol] of romanMap) {
+    while (num >= value) {
+      result += symbol
+      num -= value
+    }
+  }
+  return result
+}
+
 const ParentSelector = ({ isOpen, onClose, tree, onSelectParent }) => {
   const [selectedParentId, setSelectedParentId] = useState(null)
 
@@ -27,9 +53,8 @@ const ParentSelector = ({ isOpen, onClose, tree, onSelectParent }) => {
           className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${
             isSelected ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-100'
           }`}
-          style={{ marginLeft: level * 20 }}>
-          <FileText className='h-4 w-4' />
-          <span className='font-medium'>{node.name}</span>
+          style={{ marginLeft: level * 25 }}>
+          {toRoman(level + 1)} - <span className='font-medium'>{node.name}</span>
           {hasChildren && (
             <Badge variant='secondary' className='text-xs ml-auto'>
               {node.children.length} sub-features
@@ -37,9 +62,7 @@ const ParentSelector = ({ isOpen, onClose, tree, onSelectParent }) => {
           )}
         </div>
 
-        {hasChildren &&
-          node.isExpanded !== false &&
-          node.children.map(child => renderNodeTree(child, level + 1))}
+        {hasChildren && node.children.map(child => renderNodeTree(child, level + 1))}
       </div>
     )
   }

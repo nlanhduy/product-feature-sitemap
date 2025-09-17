@@ -19,16 +19,17 @@ import { useMutation } from '@tanstack/react-query'
 import { FeatureService } from '@/services/FeatureService'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useLog } from '@/hook/useLog'
 
 export default function Home() {
-  const [tree, setTree] = useState(initialTree)
+  const [tree, setTree] = useState()
   const [allUseCases, setAllUseCases] = useState([])
   const containerRef = useRef(null)
   const svgRef = useRef(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
   const [selectedNodeId, setSelectedNodeId] = useState(null)
-
   const [searchResults, setSearchResults] = useState([])
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
@@ -38,11 +39,36 @@ export default function Home() {
   const [parentIdForNewNode, setParentIdForNewNode] = useState(null)
   const [nodeToDelete, setNodeToDelete] = useState(null)
   const isProcessingRef = useRef(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [level, setLevel] = useState(1)
+
+  const initialTree = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/features/nodes/tree`,
+      )
+      if (!res.ok) {
+        throw new Error('Failed to fetch tree')
+      }
+
+      const data = await res.json()
+      setTree(treeUtils.addIsExpandedProperty(data.tree, 0, level))
+      setAllUseCases(treeUtils.collectAllUseCases(data.tree))
+    } catch (err) {
+      console.error('Error fetching tree:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    initialTree()
+  }, [])
 
   const NODE_WIDTH = Number(process.env.NEXT_PUBLIC_NODE_WIDTH)
   const NODE_HEIGHT = Number(process.env.NEXT_PUBLIC_NODE_HEIGHT)
   const LEVEL_HEIGHT = Number(process.env.NEXT_PUBLIC_LEVEL_HEIGHT)
-
   // CRUD
   const deleteFeatureMutation = useMutation({
     mutationFn: FeatureService.delete,
@@ -92,17 +118,16 @@ export default function Home() {
     },
   })
   const calculateLayout = useCallback((node, level = 0) => {
+    if (!node) return
     const positions = new Map()
 
     const calculateSubtreeWidth = node => {
-      if (!node.children || node.children.length === 0) {
+      if (!node.children || node.children.length === 0 || !node.isExpanded) {
         return NODE_WIDTH + 50
       }
-
       const childrenWidth = node.children.reduce((total, child) => {
         return total + calculateSubtreeWidth(child)
       }, 0)
-
       return Math.max(NODE_WIDTH + 50, childrenWidth)
     }
 
@@ -115,7 +140,6 @@ export default function Home() {
       siblings = [],
     ) => {
       let x = parentX
-
       if (level === 0) {
         const totalTreeWidth = calculateSubtreeWidth(node)
         x = totalTreeWidth / 2
@@ -125,20 +149,17 @@ export default function Home() {
         const totalSiblingsWidth = siblings.reduce((total, sibling) => {
           return total + calculateSubtreeWidth(sibling)
         }, 0)
-
         let offsetX = 0
         for (let i = 0; i < siblingIndex; i++) {
           offsetX += calculateSubtreeWidth(siblings[i])
         }
-
         const mySubtreeWidth = calculateSubtreeWidth(node)
         x = parentX - totalSiblingsWidth / 2 + offsetX + mySubtreeWidth / 2
       }
-
       const y = 80 + level * LEVEL_HEIGHT
       positions.set(node.id, { x, y, level, node })
 
-      if (node.children && node.children.length > 0) {
+      if (node.children && node.children.length > 0 && node.isExpanded) {
         const mySubtreeWidth = calculateSubtreeWidth(node)
         node.children.forEach((child, index) => {
           layoutNode(child, level + 1, x, mySubtreeWidth, index, node.children)
@@ -151,11 +172,6 @@ export default function Home() {
   }, [])
 
   const nodePositions = useMemo(() => calculateLayout(tree), [tree])
-
-  useEffect(() => {
-    const initialUseCases = useCaseStorage.initializeUseCases(initialTree)
-    setAllUseCases(initialUseCases)
-  }, [])
 
   const handleSearch = useCallback(
     query => {
@@ -188,6 +204,9 @@ export default function Home() {
   }, [])
 
   const getContentBounds = useCallback(() => {
+    if (!nodePositions) {
+      return
+    }
     let minX = Number.POSITIVE_INFINITY,
       maxX = Number.NEGATIVE_INFINITY,
       minY = Number.POSITIVE_INFINITY,
@@ -221,13 +240,14 @@ export default function Home() {
     const { width, height } = dimensions
 
     const containerCenterX = width / 2
-    const containerCenterY = height / 2
+    const containerCenterY = height / 4
 
-    const newX = containerCenterX - position.x * transform.scale
-    const newY = containerCenterY - position.y * transform.scale
+    const newX = containerCenterX - position.x
+    const newY = containerCenterY - position.y
 
     setTransform(prev => ({
       ...prev,
+      scale: 1,
       x: newX,
       y: newY,
     }))
@@ -313,16 +333,12 @@ export default function Home() {
 
       try {
         if (editingNode) {
-          const updatedFeature = await editFeatureMutation.mutateAsync({
+          await editFeatureMutation.mutateAsync({
             featureId: editingNode.id,
             data: { ...formData },
           })
 
-          setTree(prevTree => {
-            const newTree = treeUtils.deepClone(prevTree)
-            treeUtils.updateNode(newTree, editingNode.id, updatedFeature || formData)
-            return newTree
-          })
+          initialTree()
         } else {
           const newFeatureData = {
             ...formData,
@@ -330,19 +346,8 @@ export default function Home() {
             parent_id: parentIdForNewNode,
           }
 
-          const createdFeature = await addFeatureMutation.mutateAsync(newFeatureData)
-
-          setTree(prevTree => {
-            const newTree = treeUtils.deepClone(prevTree)
-            const newNode = {
-              id: createdFeature._id,
-              ...createdFeature,
-              children: [],
-              isExpanded: true,
-            }
-            treeUtils.addNode(newTree, parentIdForNewNode, newNode)
-            return newTree
-          })
+          await addFeatureMutation.mutateAsync(newFeatureData)
+          initialTree()
         }
 
         setIsEditorOpen(false)
@@ -358,7 +363,6 @@ export default function Home() {
     },
     [editingNode, parentIdForNewNode, editFeatureMutation, addFeatureMutation],
   )
-
   const handleDeleteNode = useCallback(
     nodeId => {
       if (nodeId === 'root') {
@@ -379,11 +383,12 @@ export default function Home() {
     try {
       await deleteFeatureMutation.mutateAsync(nodeToDelete.id)
 
-      setTree(prevTree => {
-        const newTree = treeUtils.deepClone(prevTree)
-        treeUtils.deleteNode(newTree, nodeToDelete.id)
-        return newTree
-      })
+      // setTree(prevTree => {
+      //   const newTree = treeUtils.deepClone(prevTree)
+      //   treeUtils.deleteNode(newTree, nodeToDelete.id)
+      //   return newTree
+      // })
+      initialTree()
       setIsDetailsOpen(false)
       setSelectedNodeId(null)
       setNodeToDelete(null)
@@ -418,6 +423,10 @@ export default function Home() {
   const handleAllUseCasesChange = useCallback(newAllUseCases => {
     setAllUseCases(newAllUseCases)
   }, [])
+
+  useEffect(() => {
+    setTree(treeUtils.addIsExpandedProperty(tree, 0, level))
+  }, [level])
 
   const handleExportData = useCallback(() => {
     const exportData = {
@@ -508,21 +517,28 @@ export default function Home() {
 
       <main className='flex-1 flex'>
         <div className='flex-1'>
-          <SitemapCanvas
-            tree={tree}
-            containerRef={containerRef}
-            svgRef={svgRef}
-            onNodeClick={handleNodeClick}
-            dimensions={dimensions}
-            setDimensions={setDimensions}
-            nodePositions={nodePositions}
-            transform={transform}
-            setTransform={setTransform}
-            getContentBounds={getContentBounds}
-            onNodeToggle={handleNodeToggle}
-            selectedNodeId={selectedNodeId}
-            searchResults={searchResults}
-          />
+          {!isLoading ? (
+            <SitemapCanvas
+              tree={tree}
+              containerRef={containerRef}
+              svgRef={svgRef}
+              onNodeClick={handleNodeClick}
+              dimensions={dimensions}
+              setDimensions={setDimensions}
+              nodePositions={nodePositions}
+              transform={transform}
+              setTransform={setTransform}
+              getContentBounds={getContentBounds}
+              onNodeToggle={handleNodeToggle}
+              focusOnNode={focusOnNode}
+              selectedNodeId={selectedNodeId}
+              searchResults={searchResults}
+              level={level}
+              setLevel={setLevel}
+            />
+          ) : (
+            <Skeleton className='w-full h-full' />
+          )}
         </div>
       </main>
 
@@ -556,7 +572,7 @@ export default function Home() {
 
       <ChatWidget
         tree={tree}
-        handleMoveToNode={focusOnNode}
+        handleMoveToNode={handleSelectSearchResult}
         handleNodeDetailClick={handleNodeClick}
         handleAddSubfeature={handleAddChild}
         handleEditFeature={handleEditNode}
